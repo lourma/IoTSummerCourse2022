@@ -1,0 +1,246 @@
+﻿@page "/fetchmqtt"
+
+<PageTitle>MQQT</PageTitle>
+
+@using BlazorMQTT.Data
+@using MQTTnet
+@using MQTTnet.Client.Connecting
+@using MQTTnet.Client.Disconnecting
+@using MQTTnet.Client.Options
+@using MQTTnet.Client.Receiving
+@using MQTTnet.Client.Subscribing
+@using MQTTnet.Extensions.ManagedClient
+@using System.Text
+@using Newtonsoft.Json
+@inject MQTTService MqttService
+
+<h1>MQTT - WebManager</h1>
+
+<p>This component demonstrates fetching data from a service.</p>
+
+<p>@managerModel.status</p>
+
+<EditForm Model="@managerModel" OnValidSubmit="@HandleValidSubmit">
+    <InputNumber id="min" @bind-Value="managerModel.minvinkel" />
+    <button type="button" class="btn btn-primary" @onclick="SetMinAngle">Set MIN angle</button>
+
+    <InputNumber id="min" @bind-Value="managerModel.maxvinkel" />
+    <button type="button" class="btn btn-primary" @onclick="SetMaxAngle">Set MAX angle</button>
+
+    <button type="button" class="btn btn-primary" @onclick="ToggleAll">@(managerModel.all?"Threashold": "Alla värden")</button>
+
+    <button type="button" class="btn btn-primary" @onclick="GetStatus">Hämta</button>
+</EditForm>
+
+@if (managerModel == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Sensor</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in managerModel.mqttData.OrderByDescending(m => m.Date))
+            {
+                <tr>
+                    <td>@m.Date</td>
+                    <td>@m.Sensor</td>
+                    <td>@m.Data</td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    protected ManagerModel managerModel = new();
+    protected IManagedMqttClient _mqttClient;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var start = new MQTTdata()
+            {
+                Data = 123,
+                Sensor = "Rollvinkel",
+                Date = DateTime.Now
+            };
+        managerModel.mqttData.Add(start);
+
+        MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
+                                    .WithClientId("WebManager")
+                                    .WithTcpServer("localhost", 1883);
+
+        ManagedMqttClientOptions options = new ManagedMqttClientOptionsBuilder()
+                         .WithAutoReconnectDelay(TimeSpan.FromSeconds(60))
+                         .WithClientOptions(builder.Build())
+                         .Build();
+
+        _mqttClient = new MqttFactory().CreateManagedMqttClient();
+
+        _mqttClient.ConnectedHandler = new MqttClientConnectedHandlerDelegate(OnConnected);
+        _mqttClient.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(OnDisconnected);
+        _mqttClient.ConnectingFailedHandler = new ConnectingFailedHandlerDelegate(OnConnectingFailed);
+
+        _mqttClient.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(a =>
+        {
+            if (a.ApplicationMessage.Topic == "topic_data")
+            {
+                var payload = Encoding.UTF8.GetString(a.ApplicationMessage.Payload);
+
+                if (payload.Contains("ROLL_ALL"))
+                {
+                    if (int.TryParse(payload.Split(" ")[1].Split(".")[0], out int allset))
+                    {
+                        managerModel.all = false;
+                        if (allset == 1)
+                            managerModel.all = true;
+                        this.InvokeAsync(() => this.StateHasChanged());
+                    }
+
+
+                }
+                else if (int.TryParse(payload.Split(".")[0], out int vinkel))
+                {
+                    var ny = new MQTTdata()
+                        {
+                            Data = vinkel,
+                            Sensor = "Rollvinkel",
+                            Date = DateTime.Now
+                        };
+
+                    Console.WriteLine("Vinkel " + vinkel);
+                    if (vinkel < 0)
+
+                        _mqttClient.PublishAsync("topic_command", "green");
+                    else
+                        _mqttClient.PublishAsync("topic_command", "red");
+
+                    managerModel.mqttData.Add(ny);
+                    managerModel.status = "Mottagna meddelanden: " + managerModel.antal++;
+                    this.InvokeAsync(() => this.StateHasChanged());
+                }
+                else
+                    _mqttClient.PublishAsync("topic_command", "off");
+            }
+        });
+
+        string[] strTopics = { "topic_data" };
+
+        MqttClientSubscribeOptions objSubOptions = new MqttClientSubscribeOptions();
+        List<MqttTopicFilter> objTopics = new List<MqttTopicFilter>();
+
+        foreach (string strTopic in strTopics)
+        {
+            MqttTopicFilter objAdd = new MqttTopicFilter();
+            objAdd.Topic = strTopic;
+            objTopics.Add(objAdd);
+        }
+
+        _mqttClient.StartAsync(options).GetAwaiter().GetResult();
+        _mqttClient.SubscribeAsync(objTopics);
+
+        GetStatus();
+
+        SendColor("YELLOW");
+        //_mqttClient.PublishAsync("topic_command", "yellow");
+        //Console.WriteLine($"+ Sent topic_command: yellow");
+
+        //Console.Write("Ange vilkel: ");
+        //var vink = Console.ReadLine();
+        //string json = JsonConvert.SerializeObject(new { vinkel = vink });
+        //_mqttClient.PublishAsync("topic_command", json);
+        //while (true)
+        //{
+        //    //string json = JsonConvert.SerializeObject(new { message = "Heyo :)", sent= DateTimeOffset.UtcNow });
+        //    //_mqttClient.PublishAsync("from_py", json);
+        //    ////dev.to / topic / json
+        //    //Console.WriteLine($"+ Sent message: {json}");
+        //    Task.Delay(1000).GetAwaiter().GetResult();
+        //}
+    }
+
+    private void HandleValidSubmit()
+    {
+    }
+
+    private void SetMinAngle()
+    {
+        SendCommand("ROLL", "MIN", @managerModel.minvinkel);
+    }
+    private void SetMaxAngle()
+    {
+        SendCommand("ROLL", "MAX", @managerModel.maxvinkel);
+    }
+    private void ToggleAll()
+    {
+        managerModel.all = !managerModel.all;
+        SendCommand("ROLL", "ALL", managerModel.all ? 1 : 0);
+    }
+
+    private void GetStatus()
+    {
+        managerModel.all = !managerModel.all;
+        SendCommand("ROLL", "GetValues");
+    }
+
+    private void SendCommand(string sensor, string setting, int value = 0)
+    {
+
+        string json = JsonConvert.SerializeObject(new { sensor = sensor, setting = setting, value = value });
+        _mqttClient.PublishAsync("topic_command", json);
+    }
+
+
+
+    private void SendColor(string color)
+    {
+
+    }
+
+    //string json = JsonConvert.SerializeObject(new { sensor = sensor, setting = setting, value = value });
+    //_mqttClient.PublishAsync("topic_command", json);
+    //}
+
+    public void OnConnected(MqttClientConnectedEventArgs obj)
+    {
+        Console.WriteLine("Successfully connected.");
+        //status = "Successfully connected.";
+        //this.InvokeAsync(() => this.StateHasChanged());
+    }
+
+    public void OnConnectingFailed(ManagedProcessFailedEventArgs obj)
+    {
+        Console.WriteLine("Couldn't connect to broker.");
+        //status = "Couldn't connect to broker.";
+        //this.InvokeAsync(() => this.StateHasChanged());
+    }
+
+    public void OnDisconnected(MqttClientDisconnectedEventArgs obj)
+    {
+        Console.WriteLine("Successfully disconnected.");
+        //status = "Successfully disconnected.";
+        //this.InvokeAsync(() => this.StateHasChanged());
+    }
+
+
+    public class ManagerModel
+    {
+        public string status { get; set; }
+
+        public int minvinkel { get; set; } = -45;
+        public int maxvinkel { get; set; } = 45;
+
+        public int antal { get; set; } = 0;
+        public List<MQTTdata> mqttData = new List<MQTTdata>();
+
+        public bool all { get; set; } = false;
+    }
+}
