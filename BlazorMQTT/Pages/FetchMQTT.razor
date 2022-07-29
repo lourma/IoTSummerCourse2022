@@ -18,6 +18,12 @@
 
 <p>This component demonstrates fetching data from a service.</p>
 
+<div style="border:2px solid red; width:100px;  height: 100px;  position: relative;">
+    <div style="border:1px solid black; position:absolute;text-align:center; padding:30 0 0 0; width:70px;  height: 30px;  top: 34px;  left: 14px; transform: @managerModel.mqttData.OrderByDescending(d => d.Date).First().Rotate;"> 
+        @managerModel.mqttData.OrderByDescending(d => d.Date).First().Data &deg;
+    </div>
+</div>
+
 <p>@managerModel.status</p>
 
 <EditForm Model="@managerModel" OnValidSubmit="@HandleValidSubmit">

@@ -7,5 +7,8 @@ namespace BlazorMQTT.Data
         public int Data { get; set; }
 
         public string? Sensor { get; set; }
+
+        public string Rotate => "rotate(" + Data + "deg)";
+
     }
 }
