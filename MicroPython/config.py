@@ -1,10 +1,10 @@
 
 # WiFi credentials
-WIFI_SSID = _youreSSID
-WIFI_PASS = _yourePass
+WIFI_SSID = 'lounet'
+WIFI_PASS = 'Sailor35'
 
-MQTT_BROKER = _youreIp
+MQTT_BROKER = '192.168.1.232'
 TOKEN = 'ACCOUNT_TOKEN'
-MQTT_PORT = _yourePort
+MQTT_PORT = 1883
 TOPIC_COMMAND = b'topic_command'
 TOPIC_DATA =  b'topic_data'

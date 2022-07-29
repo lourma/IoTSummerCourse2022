@@ -55,9 +55,10 @@ def connect_and_subscribe():
   return client
 
 def restart_and_reconnect():
-  print('Failed to connect to MQTT broker. Reconnecting...')
-  time.sleep(10)
-  machine.reset()
+  print('Failed to connect to MQTT broker.')
+  # time.sleep(10)
+  # machine.reset()
+
 
 try:
   py = Pycoproc()
