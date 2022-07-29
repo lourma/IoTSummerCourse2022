@@ -23,9 +23,9 @@ mqtt_port = config.MQTT_PORT
 
 client_id = 'MyPyCom'
 
-topic_server = config.TOPIC_COMMAND
-topic_pycom = config.TOPIC_DATA
-topic_color = "topic_color"
+topic_command = b'topic_command'
+topic_data = b'topic_data'
+
 
 last_message = 0
 message_interval = 5

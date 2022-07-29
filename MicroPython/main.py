@@ -10,7 +10,7 @@ rollAll = 0
 def sub_cb(topic, msg):
     print((topic, msg))
     inmsg = ''
-    if topic == topic_server:
+    if topic == topic_command:
         if("sensor" in msg):
             parsed = ujson.loads(msg)
             print(parsed)
@@ -25,32 +25,32 @@ def sub_cb(topic, msg):
                     global rollAll
                     rollAll = float(parsed["value"])
                 elif(parsed["setting"] == "GetValues"):
-                    client.publish(topic_pycom, b'ROLL_ALL ' + str(rollAll))
-                    # client.publish(topic_pycom, b'{"sensor":"ROLL","setting":"MIN", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"MAX", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"ALL", "value":'+rollAll+'}')
+                    client.publish(topic_data, b'ROLL_ALL ' + str(rollAll))
+                    # client.publish(topic_data, b'{"sensor":"ROLL","setting":"MIN", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"MAX", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"ALL", "value":'+rollAll+'}')
 
         elif msg == b'red':
             pycom.rgbled(0xFF0000)
-            # client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_data, b'Pycom is ' + msg)
         elif msg == b'green':
             pycom.rgbled(0x00ff00)
-            # client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_data, b'Pycom is ' + msg)
         elif msg == b'blue':
             pycom.rgbled(0x0000ff)
-            # client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_data, b'Pycom is ' + msg)
         elif msg == b'yellow':
             pycom.rgbled(0xffff00)
-            # client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_data, b'Pycom is ' + msg)
         else:
             pycom.rgbled(0x000000)
-        #  client.publish(topic_pycom, b'Pycom got ' + msg)
+        #  client.publish(topic_data, b'Pycom got ' + msg)
 
 def connect_and_subscribe():
-  global client_id, mqtt_server, topic_server
+  global client_id, mqtt_server, topic_command
   client = MQTTClient(client_id, mqtt_server, port=mqtt_port, keepalive=60)
   client.set_callback(sub_cb)
   client.connect()
-  client.subscribe(topic_server)
-  print('Connected to %s MQTT broker, subscribed to %s topic' % (mqtt_server, topic_server))
+  client.subscribe(topic_command)
+  print('Connected to %s MQTT broker, subscribed to %s topic' % (mqtt_server, topic_command))
   print('Connected to broker')
   return client
 
@@ -81,12 +81,12 @@ while True:
     if(rollAll == 1):
         if((roll + 4 < li.roll()) or (roll - 4 > li.roll())):
           roll = li.roll()
-          client.publish(topic_pycom, str(roll))
+          client.publish(topic_data, str(roll))
           print(b'Sent: Roll' + str(roll))
 
     if((sent_neg == 0) and (rollMin > li.roll())):
       roll = li.roll()
-      client.publish(topic_pycom, str(roll))
+      client.publish(topic_data, str(roll))
       print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMin))
       sent_neg = 1
 
@@ -95,7 +95,7 @@ while True:
 
     if((sent_pos == 0) and (rollMax < li.roll())):
       roll = li.roll()
-      client.publish(topic_pycom, str(roll))
+      client.publish(topic_data, str(roll))
       print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMax))
       sent_pos = 1
 
@@ -107,7 +107,7 @@ while True:
     #   print('Sent: Hello #%d' % counter)
     #   outmsg = b'Hello #%d' % counter
     #
-    #   client.publish(topic_pycom, outmsg)
+    #   client.publish(topic_data, outmsg)
     #   last_message = time.time()
     #   counter += 1
   except OSError as e:
