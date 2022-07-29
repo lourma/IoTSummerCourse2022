@@ -10,7 +10,6 @@ rollAll = 0
 def sub_cb(topic, msg):
     print((topic, msg))
     inmsg = ''
-
     if topic == topic_server:
         if("sensor" in msg):
             parsed = ujson.loads(msg)
@@ -28,18 +27,19 @@ def sub_cb(topic, msg):
                 elif(parsed["setting"] == "GetValues"):
                     client.publish(topic_pycom, b'ROLL_ALL ' + str(rollAll))
                     # client.publish(topic_pycom, b'{"sensor":"ROLL","setting":"MIN", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"MAX", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"ALL", "value":'+rollAll+'}')
+
         elif msg == b'red':
             pycom.rgbled(0xFF0000)
-            client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_pycom, b'Pycom is ' + msg)
         elif msg == b'green':
             pycom.rgbled(0x00ff00)
-            client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_pycom, b'Pycom is ' + msg)
         elif msg == b'blue':
             pycom.rgbled(0x0000ff)
-            client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_pycom, b'Pycom is ' + msg)
         elif msg == b'yellow':
             pycom.rgbled(0xffff00)
-            client.publish(topic_pycom, b'Pycom is ' + msg)
+            # client.publish(topic_pycom, b'Pycom is ' + msg)
         else:
             pycom.rgbled(0x000000)
         #  client.publish(topic_pycom, b'Pycom got ' + msg)

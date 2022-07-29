@@ -118,17 +118,16 @@ else
 
                     Console.WriteLine("Vinkel " + vinkel);
                     if (vinkel < 0)
-
-                        _mqttClient.PublishAsync("topic_command", "green");
+                        SendColor("green");
                     else
-                        _mqttClient.PublishAsync("topic_command", "red");
+                        SendColor("red");
 
                     managerModel.mqttData.Add(ny);
                     managerModel.status = "Mottagna meddelanden: " + managerModel.antal++;
                     this.InvokeAsync(() => this.StateHasChanged());
                 }
                 else
-                    _mqttClient.PublishAsync("topic_command", "off");
+                    SendColor("off");
             }
         });
 
@@ -149,7 +148,7 @@ else
 
         GetStatus();
 
-        SendColor("YELLOW");
+        SendColor("yellow");
         //_mqttClient.PublishAsync("topic_command", "yellow");
         //Console.WriteLine($"+ Sent topic_command: yellow");
 
@@ -202,7 +201,7 @@ else
 
     private void SendColor(string color)
     {
-
+        _mqttClient.PublishAsync("topic_command", color);
     }
 
     //string json = JsonConvert.SerializeObject(new { sensor = sensor, setting = setting, value = value });

@@ -25,6 +25,7 @@ client_id = 'MyPyCom'
 
 topic_server = config.TOPIC_COMMAND
 topic_pycom = config.TOPIC_DATA
+topic_color = "topic_color"
 
 last_message = 0
 message_interval = 5
