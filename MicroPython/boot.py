@@ -9,7 +9,7 @@ import machine
 import micropython
 from network import WLAN
 import pycom
-import config
+from myconfig import config
 import ujson
 
 from pycoproc_2 import Pycoproc
