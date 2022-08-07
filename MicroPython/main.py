@@ -6,10 +6,11 @@ global rollMin
 rollMin = -45
 global rollAll
 rollAll = 0
+global change
+change = 4
 
 def sub_cb(topic, msg):
     print((topic, msg))
-    inmsg = ''
     if topic == topic_command:
         if("sensor" in msg):
             parsed = ujson.loads(msg)
@@ -24,6 +25,9 @@ def sub_cb(topic, msg):
                 elif(parsed["setting"] == "ALL"):
                     global rollAll
                     rollAll = float(parsed["value"])
+                elif(parsed["setting"] == "CHG"):
+                        global change
+                        change = float(parsed["value"])
                 elif(parsed["setting"] == "GetValues"):
                     client.publish(topic_data, b'ROLL_ALL ' + str(rollAll))
                     # client.publish(topic_data, b'{"sensor":"ROLL","setting":"MIN", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"MAX", "value":'+rollMin+'},'+'{"sensor":"ROLL","setting":"ALL", "value":'+rollAll+'}')
@@ -79,28 +83,32 @@ while True:
 
 #Original
     if(rollAll == 1):
-        if((roll + 4 < li.roll()) or (roll - 4 > li.roll())):
+        if((roll + change < li.roll()) or (roll - change > li.roll()) or (pitch + change < li.pitch()) or (pitch - change > li.pitch())):
           roll = li.roll()
-          client.publish(topic_data, str(roll))
-          print(b'Sent: Roll' + str(roll))
+          pitch = li.pitch()
+          client.publish(topic_data, str(roll)+":"+str(pitch))
+          print(b'Sent:' + str(roll) + ':' + str(pitch))
 
-    if((sent_neg == 0) and (rollMin > li.roll())):
-      roll = li.roll()
-      client.publish(topic_data, str(roll))
-      print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMin))
-      sent_neg = 1
+    else:
+        if((sent_neg == 0) and (rollMin > li.roll())):
+          roll = li.roll()
+          pitch = li.pitch()
+          client.publish(topic_data, str(roll)+":"+str(pitch))
+          print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMin))
+          sent_neg = 1
 
-    if((sent_neg == 1) and(rollMin < li.roll())):
-      sent_neg = 0
+        if((sent_neg == 1) and(rollMin < li.roll())):
+          sent_neg = 0
 
-    if((sent_pos == 0) and (rollMax < li.roll())):
-      roll = li.roll()
-      client.publish(topic_data, str(roll))
-      print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMax))
-      sent_pos = 1
+        if((sent_pos == 0) and (rollMax < li.roll())):
+          roll = li.roll()
+          pitch = li.pitch()
+          client.publish(topic_data, str(roll)+":"+str(pitch))
+          print(b'Sent: Roll ' + str(roll) + " th:" + str(rollMax))
+          sent_pos = 1
 
-    if((sent_pos == 1) and(rollMax > li.roll())):
-      sent_pos = 0
+        if((sent_pos == 1) and(rollMax > li.roll())):
+          sent_pos = 0
 
 
     # if (time.time() - last_message) > message_interval:

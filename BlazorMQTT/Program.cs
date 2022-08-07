@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
-builder.Services.AddSingleton<MQTTService>();
+//builder.Services.AddSingleton<MQTTService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

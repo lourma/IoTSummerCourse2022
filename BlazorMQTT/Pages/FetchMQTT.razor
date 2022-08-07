@@ -12,30 +12,42 @@
 @using MQTTnet.Extensions.ManagedClient
 @using System.Text
 @using Newtonsoft.Json
-@inject MQTTService MqttService
 
 <h1>MQTT - WebManager</h1>
 
-<p>This component demonstrates fetching data from a service.</p>
-
-<div style="border:2px solid red; width:100px;  height: 100px;  position: relative;">
-    <div style="border:1px solid black; position:absolute;text-align:center; padding:30 0 0 0; width:70px;  height: 30px;  top: 34px;  left: 14px; transform: @managerModel.mqttData.OrderByDescending(d => d.Date).First().Rotate;"> 
-        @managerModel.mqttData.OrderByDescending(d => d.Date).First().Data &deg;
-    </div>
-</div>
-
-<p>@managerModel.status</p>
-
 <EditForm Model="@managerModel" OnValidSubmit="@HandleValidSubmit">
-    <InputNumber id="min" @bind-Value="managerModel.minvinkel" />
-    <button type="button" class="btn btn-primary" @onclick="SetMinAngle">Set MIN angle</button>
 
-    <InputNumber id="min" @bind-Value="managerModel.maxvinkel" />
-    <button type="button" class="btn btn-primary" @onclick="SetMaxAngle">Set MAX angle</button>
+    <div class="instrument">
 
-    <button type="button" class="btn btn-primary" @onclick="ToggleAll">@(managerModel.all?"Threashold": "Alla värden")</button>
+        <div class="outerdiv">
+            <div class="innerdiv" style="transform: @RollDraw; background: linear-gradient(#9ff, #9ff @PitchDraw, #7f5a3d @PitchDraw, #7f5a3d)">
+            </div>
+            <div class="linediv">&nbsp;</div>
+            <div class="textdiv">
+                Roll: @Roll&deg;<br />
+                Pitch: @Pitch&deg;
+            </div>
+        </div>
 
-    <button type="button" class="btn btn-primary" @onclick="GetStatus">Hämta</button>
+        <div class="threshold" @onclick="SetThreshold" style="color: @(All?"gray": "yellow"); border-color: @(All?"gray": "yellow");">
+            <b>Threshold</b><br />
+            <label>Min angle</label>
+            <input type="number" id="min" @bind="MinAngle" style="width:6ch; margin-left:4px; background-color: @(All?"gray": "yellow")" />
+            <br />
+            <label>Max angle</label>
+            <input type="number" id="min" @bind="MaxAngle" style="width:6ch; background-color: @(All?"gray": "yellow")" />
+        </div>
+
+        <div class="change" @onclick="SetChange" style="color: @(!All?"gray": "yellow");border-color: @(!All?"gray": "yellow");">
+            <b>Change</b><br />
+            Angle <input type="number" id="change" @bind="Change" style="width:6ch; background-color: @(!All?"gray": "yellow")">
+        </div>
+
+          <div class="change"  style="color: green;">
+            <b>Recived messages</b><br />
+            <h2>@Messages</h2>
+        </div>
+    </div>
 </EditForm>
 
 @if (managerModel == null)
@@ -47,19 +59,22 @@ else
     <table class="table">
         <thead>
             <tr>
+                <th>Number</th>
                 <th>Date</th>
                 <th>Sensor</th>
-                <th>Data</th>
+                <th>Roll</th>
+                <th>Pitch</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var m in managerModel.mqttData.OrderByDescending(m => m.Date))
             {
                 <tr>
+                    <td>@m.MessageNumber</td>
                     <td>@m.Date</td>
                     <td>@m.Sensor</td>
-                    <td>@m.Data</td>
-
+                    <td>@m.Roll</td>
+                    <td>@m.Pitch</td>
                 </tr>
             }
         </tbody>
@@ -67,15 +82,64 @@ else
 }
 
 @code {
+
+    protected string RollDraw => "rotate(" + Roll + "deg)";
+    protected int Roll { get; set; } = 0;
+
+    protected string PitchDraw => (Pitch + 50) + "%";
+    protected int Pitch { get; set; } = 0;
     protected ManagerModel managerModel = new();
     protected IManagedMqttClient _mqttClient;
+
+    int _changeAngle = 4;
+    [Parameter]
+    public int Change
+    {
+        get => _changeAngle;
+        set
+        {
+            _changeAngle = value;
+            SetChangeAngle();
+        }
+    }
+
+    int _minAngle = -33;
+    [Parameter]
+    public int MinAngle
+    {
+        get => _minAngle;
+        set
+        {
+            _minAngle = value;
+            SetMinAngle();
+        }
+    }
+
+    int _maxAngle = 33;
+    [Parameter]
+    public int MaxAngle
+    {
+        get => _maxAngle;
+        set
+        {
+            _maxAngle = value;
+            SetMaxAngle();
+        }
+    }
+
+    [Parameter]
+    public int Messages { get; set; } = 0;
+
+    [Parameter]
+    public bool All { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
         var start = new MQTTdata()
             {
-                Data = 123,
-                Sensor = "Rollvinkel",
+                Roll = Roll,
+                Pitch = Pitch,
+                Sensor = "LIS2HH12",
                 Date = DateTime.Now
             };
         managerModel.mqttData.Add(start);
@@ -105,35 +169,50 @@ else
                 {
                     if (int.TryParse(payload.Split(" ")[1].Split(".")[0], out int allset))
                     {
-                        managerModel.all = false;
+                        All = false;
                         if (allset == 1)
-                            managerModel.all = true;
+                            All = true;
                         this.InvokeAsync(() => this.StateHasChanged());
                     }
 
 
                 }
-                else if (int.TryParse(payload.Split(".")[0], out int vinkel))
-                {
-                    var ny = new MQTTdata()
-                        {
-                            Data = vinkel,
-                            Sensor = "Rollvinkel",
-                            Date = DateTime.Now
-                        };
-
-                    Console.WriteLine("Vinkel " + vinkel);
-                    if (vinkel < 0)
-                        SendColor("green");
-                    else
-                        SendColor("red");
-
-                    managerModel.mqttData.Add(ny);
-                    managerModel.status = "Mottagna meddelanden: " + managerModel.antal++;
-                    this.InvokeAsync(() => this.StateHasChanged());
-                }
                 else
-                    SendColor("off");
+                {
+                    var payloadarray = payload.Split(":");
+                    if (int.TryParse(payloadarray[0].Split(".")[0], out int roll))
+                    {
+                        Roll = roll;
+
+                        int pitch = 0;
+                        if (payloadarray.Length > 1)
+                            if (int.TryParse(payloadarray[1].Split(".")[0], out pitch))
+                            {
+                                Pitch = pitch;
+                            }
+                        Messages++;
+                        var ny = new MQTTdata()
+                            {
+                                Roll = roll,
+                                Pitch = pitch,
+                                Sensor = "LIS2HH12",
+                                Date = DateTime.Now,
+                                MessageNumber = Messages
+                            };
+
+                        Console.WriteLine("Roll:" + roll + ", Pitch:" + pitch);
+                        if (roll < 0)
+                            SendColor("green");
+                        else
+                            SendColor("red");
+
+                        managerModel.mqttData.Add(ny);
+
+                        this.InvokeAsync(() => this.StateHasChanged());
+                    }
+                    else
+                        SendColor("off");
+                }
             }
         });
 
@@ -150,11 +229,14 @@ else
         }
 
         _mqttClient.StartAsync(options).GetAwaiter().GetResult();
-        _mqttClient.SubscribeAsync(objTopics);
+        await _mqttClient.SubscribeAsync(objTopics);
 
         GetStatus();
 
         SendColor("yellow");
+        SetChangeAngle();
+        SetMinAngle();
+        SetMaxAngle();
         //_mqttClient.PublishAsync("topic_command", "yellow");
         //Console.WriteLine($"+ Sent topic_command: yellow");
 
@@ -178,21 +260,44 @@ else
 
     private void SetMinAngle()
     {
-        SendCommand("ROLL", "MIN", @managerModel.minvinkel);
+        SendCommand("ROLL", "MIN", _minAngle);
     }
     private void SetMaxAngle()
     {
-        SendCommand("ROLL", "MAX", @managerModel.maxvinkel);
+        SendCommand("ROLL", "MAX", _maxAngle);
     }
+
+    private void SetChangeAngle()
+    {
+        SendCommand("ROLL", "CHG", _changeAngle);
+    }
+
     private void ToggleAll()
     {
-        managerModel.all = !managerModel.all;
-        SendCommand("ROLL", "ALL", managerModel.all ? 1 : 0);
+        All = !All;
+        SendCommand("ROLL", "ALL", All ? 1 : 0);
+    }
+
+    private void SetThreshold()
+    {
+        All = false;
+        SendCommand("ROLL", "ALL", 0);
+        Thread.Sleep(100);
+        SetMinAngle();
+        Thread.Sleep(100);
+        SetMaxAngle();
+    }
+
+    private void SetChange()
+    {
+        All = true;
+        SendCommand("ROLL", "ALL", 1);
+        Thread.Sleep(100);
+        SetChangeAngle();
     }
 
     private void GetStatus()
     {
-        managerModel.all = !managerModel.all;
         SendCommand("ROLL", "GetValues");
     }
 
@@ -203,49 +308,31 @@ else
         _mqttClient.PublishAsync("topic_command", json);
     }
 
-
-
     private void SendColor(string color)
     {
         _mqttClient.PublishAsync("topic_command", color);
     }
 
-    //string json = JsonConvert.SerializeObject(new { sensor = sensor, setting = setting, value = value });
-    //_mqttClient.PublishAsync("topic_command", json);
-    //}
-
     public void OnConnected(MqttClientConnectedEventArgs obj)
     {
         Console.WriteLine("Successfully connected.");
-        //status = "Successfully connected.";
-        //this.InvokeAsync(() => this.StateHasChanged());
     }
 
     public void OnConnectingFailed(ManagedProcessFailedEventArgs obj)
     {
         Console.WriteLine("Couldn't connect to broker.");
-        //status = "Couldn't connect to broker.";
-        //this.InvokeAsync(() => this.StateHasChanged());
     }
 
     public void OnDisconnected(MqttClientDisconnectedEventArgs obj)
     {
         Console.WriteLine("Successfully disconnected.");
-        //status = "Successfully disconnected.";
-        //this.InvokeAsync(() => this.StateHasChanged());
     }
 
 
     public class ManagerModel
     {
-        public string status { get; set; }
-
-        public int minvinkel { get; set; } = -45;
-        public int maxvinkel { get; set; } = 45;
-
-        public int antal { get; set; } = 0;
         public List<MQTTdata> mqttData = new List<MQTTdata>();
 
-        public bool all { get; set; } = false;
+
     }
 }
